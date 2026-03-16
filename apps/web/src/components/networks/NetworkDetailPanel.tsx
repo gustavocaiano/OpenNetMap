@@ -29,6 +29,7 @@ type NetworkDetailPanelProps = {
   editingHost: Host | null;
   hostSaveLoading?: boolean;
   hostDeleteLoading?: boolean;
+  hostBulkDeleteLoading?: boolean;
   deletingHostId?: string | null;
   hostError?: string | null;
   scanLoading?: boolean;
@@ -37,6 +38,7 @@ type NetworkDetailPanelProps = {
   onScan: () => void;
   onEditHost: (host: Host) => void;
   onDeleteHost: (host: Host) => void;
+  onDeleteReviewHosts: (hosts: Host[]) => void;
   onSaveHost: (values: HostFormValues) => void;
   onUpsertConnection: (deviceId: string, values: ConnectionPayload) => void;
   onRemoveConnection: (deviceId: string) => void;
@@ -99,6 +101,7 @@ export function NetworkDetailPanel({
   editingHost,
   hostSaveLoading,
   hostDeleteLoading,
+  hostBulkDeleteLoading,
   deletingHostId,
   hostError,
   scanLoading,
@@ -107,6 +110,7 @@ export function NetworkDetailPanel({
   onScan,
   onEditHost,
   onDeleteHost,
+  onDeleteReviewHosts,
   onSaveHost,
   onUpsertConnection,
   onRemoveConnection,
@@ -237,14 +241,21 @@ export function NetworkDetailPanel({
                     Review hosts directly from the inspector instead of drilling through scan history first.
                   </Text>
                 </Stack>
-                <SegmentedControl
-                  value={hostFilter}
-                  onChange={(value) => setHostFilter(value as 'all' | 'needs-review')}
-                  data={[
-                    { label: `All (${hosts.length})`, value: 'all' },
-                    { label: `Needs review (${reviewCount})`, value: 'needs-review' },
-                  ]}
-                />
+                <Stack gap="xs" align="flex-end">
+                  <SegmentedControl
+                    value={hostFilter}
+                    onChange={(value) => setHostFilter(value as 'all' | 'needs-review')}
+                    data={[
+                      { label: `All (${hosts.length})`, value: 'all' },
+                      { label: `Needs review (${reviewCount})`, value: 'needs-review' },
+                    ]}
+                  />
+                  {reviewCount ? (
+                    <Button color="red" variant="light" loading={hostBulkDeleteLoading} onClick={() => onDeleteReviewHosts(hosts.filter((host) => host.needs_review))}>
+                      Remove all needs review
+                    </Button>
+                  ) : null}
+                </Stack>
               </Group>
 
               {hostError ? <ErrorAlert message={hostError} /> : null}
