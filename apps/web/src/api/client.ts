@@ -42,6 +42,10 @@ export type MapItem = {
 
 export type DeviceType = 'router' | 'firewall' | 'server';
 
+export type HostType = 'unknown' | 'server' | 'vm' | 'workstation';
+
+export type HostDiscoverySource = 'nmap' | 'manual';
+
 export type NetworkKind = 'segment' | 'link';
 
 export type AnchorPreference = 'auto' | 'top' | 'right' | 'bottom' | 'left';
@@ -87,9 +91,9 @@ export type Host = {
   ip_address: string;
   hostname: string | null;
   detected_hostname: string | null;
-  type: string | null;
+  type: HostType;
   notes: string | null;
-  discovery_source: string | null;
+  discovery_source: HostDiscoverySource;
   needs_review: boolean;
   first_seen_at: string | null;
   last_seen_at: string | null;

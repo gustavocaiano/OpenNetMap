@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Button, Divider, Group, Paper, SegmentedControl, Stack, Tabs, Text, Title } from '@mantine/core';
 import { IconPencil, IconRadar2 } from '@tabler/icons-react';
 import { Device, DeviceNetworkLink, Host, LatestScanJobSummary, Network, ScanJob } from '../../api/client';
+import { ErrorAlert } from '../common/ErrorAlert';
 import { HostForm, HostFormValues } from '../hosts/HostForm';
 import { HostTable } from '../hosts/HostTable';
 import { ScanHistoryList } from '../scan-jobs/ScanHistoryList';
@@ -27,11 +28,15 @@ type NetworkDetailPanelProps = {
   activeScanJob?: ScanJob | LatestScanJobSummary;
   editingHost: Host | null;
   hostSaveLoading?: boolean;
+  hostDeleteLoading?: boolean;
+  deletingHostId?: string | null;
+  hostError?: string | null;
   scanLoading?: boolean;
   connectionLoading?: boolean;
   onEditNetwork: () => void;
   onScan: () => void;
   onEditHost: (host: Host) => void;
+  onDeleteHost: (host: Host) => void;
   onSaveHost: (values: HostFormValues) => void;
   onUpsertConnection: (deviceId: string, values: ConnectionPayload) => void;
   onRemoveConnection: (deviceId: string) => void;
@@ -93,11 +98,15 @@ export function NetworkDetailPanel({
   activeScanJob,
   editingHost,
   hostSaveLoading,
+  hostDeleteLoading,
+  deletingHostId,
+  hostError,
   scanLoading,
   connectionLoading,
   onEditNetwork,
   onScan,
   onEditHost,
+  onDeleteHost,
   onSaveHost,
   onUpsertConnection,
   onRemoveConnection,
@@ -238,7 +247,9 @@ export function NetworkDetailPanel({
                 />
               </Group>
 
-              <HostTable hosts={filteredHosts} onEdit={onEditHost} />
+              {hostError ? <ErrorAlert message={hostError} /> : null}
+
+              <HostTable hosts={filteredHosts} onEdit={onEditHost} onDelete={onDeleteHost} deletingHostId={hostDeleteLoading ? deletingHostId : null} />
 
               {editingHost ? (
                 <>

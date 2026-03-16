@@ -6,7 +6,7 @@ def parse_nmap_ping_scan(xml_payload: str) -> list[dict[str, str | None]]:
     hosts: list[dict[str, str | None]] = []
     for host in root.findall("host"):
         status = host.find("status")
-        if status is not None and status.attrib.get("state") != "up":
+        if status is None or status.attrib.get("state") != "up":
             continue
         address = None
         for addr in host.findall("address"):

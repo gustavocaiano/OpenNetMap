@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack } from '@mantine/core';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createDevice, deleteDevice, patchDevicePosition, updateDevice } from '../api/devices';
-import { updateHost } from '../api/hosts';
+import { deleteHost, updateHost } from '../api/hosts';
 import { getMap, getMapGraph } from '../api/maps';
 import { createNetwork, deleteNetwork, linkDeviceToNetwork, listNetworkHosts, patchNetworkPosition, unlinkDeviceFromNetwork, updateNetwork } from '../api/networks';
 import { createNetworkScan, getScanJob, listNetworkScanJobs } from '../api/scanJobs';
@@ -69,7 +69,7 @@ function normalizeHostPayload(values: HostFormValues) {
   return {
     ip_address: values.ip_address.trim(),
     hostname: values.hostname.trim() || null,
-    type: values.type.trim() || null,
+    type: values.type,
     notes: values.notes.trim() || null,
     needs_review: values.needs_review,
   };
@@ -84,7 +84,7 @@ export function MapEditorPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [drawerMode, setDrawerMode] = useState<DrawerMode>({ kind: 'empty' });
-  const [confirmDelete, setConfirmDelete] = useState<{ type: 'device' | 'network'; id: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'device' | 'network' | 'host'; id: string; label?: string } | null>(null);
   const [editingHost, setEditingHost] = useState<Host | null>(null);
   const [lastActiveStatus, setLastActiveStatus] = useState<ScanJob['status'] | null>(null);
 
@@ -272,6 +272,18 @@ export function MapEditorPage() {
     },
   });
 
+  const deleteHostMutation = useMutation({
+    mutationFn: (hostId: string) => deleteHost(hostId),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      setEditingHost(null);
+      queryClient.invalidateQueries({ queryKey: ['map', mapId] });
+      queryClient.invalidateQueries({ queryKey: ['maps'] });
+      queryClient.invalidateQueries({ queryKey: ['network-hosts', selectedNetworkId] });
+      queryClient.invalidateQueries({ queryKey: ['map-graph', mapId] });
+    },
+  });
+
   const upsertConnectionMutation = useMutation({
     mutationFn: ({ deviceId, networkId, values }: { deviceId: string; networkId: string; values: { role?: 'origin' | 'member'; ip_address?: string | null; label?: string | null; color?: string | null; device_anchor?: 'auto' | 'top' | 'right' | 'bottom' | 'left' | null; network_anchor?: 'auto' | 'top' | 'right' | 'bottom' | 'left' | null } }) =>
       linkDeviceToNetwork(deviceId, networkId, values),
@@ -402,11 +414,21 @@ export function MapEditorPage() {
           activeScanJob={activeScanJobQuery.data ?? activeScanJob}
           editingHost={editingHost}
           hostSaveLoading={updateHostMutation.isPending}
+          hostDeleteLoading={deleteHostMutation.isPending}
+          deletingHostId={confirmDelete?.type === 'host' ? confirmDelete.id : null}
+          hostError={
+            updateHostMutation.isError
+              ? getErrorMessage(updateHostMutation.error, 'Unable to save host')
+              : deleteHostMutation.isError
+                ? getErrorMessage(deleteHostMutation.error, 'Unable to delete host')
+                : null
+          }
           scanLoading={scanMutation.isPending}
           connectionLoading={upsertConnectionMutation.isPending || removeConnectionMutation.isPending}
           onEditNetwork={() => openEditNetworkDrawer(selectedNetwork.id)}
           onScan={() => scanMutation.mutate(selectedNetwork.id)}
           onEditHost={(host) => setEditingHost(host)}
+          onDeleteHost={(host) => setConfirmDelete({ type: 'host', id: host.id, label: host.ip_address })}
           onSaveHost={(values) => {
             if (editingHost) {
               updateHostMutation.mutate({ hostId: editingHost.id, values });
@@ -477,9 +499,9 @@ export function MapEditorPage() {
       <ConfirmDialog
         opened={Boolean(confirmDelete)}
         title={`Delete ${confirmDelete?.type ?? 'item'}`}
-        message="This action cannot be undone from the UI."
+        message={confirmDelete?.type === 'host' ? `Delete host ${confirmDelete.label ?? ''}? This action cannot be undone from the UI.` : 'This action cannot be undone from the UI.'}
         confirmLabel="Delete"
-        loading={deleteDeviceMutation.isPending || deleteNetworkMutation.isPending}
+        loading={deleteDeviceMutation.isPending || deleteNetworkMutation.isPending || deleteHostMutation.isPending}
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
           if (!confirmDelete) {
@@ -488,6 +510,11 @@ export function MapEditorPage() {
 
           if (confirmDelete.type === 'device') {
             deleteDeviceMutation.mutate(confirmDelete.id);
+            return;
+          }
+
+          if (confirmDelete.type === 'host') {
+            deleteHostMutation.mutate(confirmDelete.id);
             return;
           }
 
